@@ -1,24 +1,29 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
+
+public enum MovementState {
+	
+	Idle,
+	Walking,
+	Running,
+	Crouching
+}
+
 
 public class PlayerController : MonoBehaviour {
 	
 	// Editor parametrs
 	public float walkSpeed;
 	public float runSpeed;
-	public float mouseSensivity;
 	public float gravity;
 	public float jumpStrength;
 
 	// Components and child objects
 	private CharacterController player;
-	private Camera playerCamera;
-	private PlayerInput input;
 	
 	// Private properties
 	private Vector2 movementInput;
-	private Vector2 rotationInput;
-	private Vector2 cameraRotationInput;
+	private float horizontalSpeed = 0f;
+	private MovementState movementState;
 	private bool isRunning = false;
 	private bool isJumping = false;
 	private bool isGrounded = false;
@@ -26,67 +31,96 @@ public class PlayerController : MonoBehaviour {
 	private float gravityAcceleration = 0f;
 	
 	// Controller initialization
-    void Awake() {
+    void Start() {
 		
 		FindObjects();
-		BindInputs();	
 
-		Cursor.lockState = CursorLockMode.Locked;
     }
 
 	private void FindObjects() {
 
-		this.player = GetComponent<CharacterController>();
-		this.playerCamera = FindFirstObjectByType<Camera>();
-		this.input = new PlayerInput();
+		player = GetComponent<CharacterController>();
 	}
 
-	// Handler to event mapping
-	private void BindInputs() {
+	public void SetMovementInput(Vector2 movementInput) {
 
-		input.PlayerMovement.Movement.performed += movementHandler; 
-		input.PlayerMovement.Movement.canceled += movementHandler;
-		
-		input.PlayerMovement.Run.performed += isRunningHandler;
-		input.PlayerMovement.Run.canceled += isRunningHandler;
-
-		input.PlayerMovement.Look.performed += rotationHandler;
-		input.PlayerMovement.Look.canceled += rotationHandler;
-
-		input.PlayerMovement.Jump.performed += jumpHandler;
+		this.movementInput = movementInput;
 	}
 
-	private void OnEnable() {
+	public float GetSpeed() {
 
-		input.PlayerMovement.Enable();
+		return this.horizontalSpeed;
 
 	}
 
-	private void OnDisable() {
-
-		input.PlayerMovement.Disable();
-
-	}
-
-	private void movementHandler(InputAction.CallbackContext ctx) {
-		
-		this.movementInput = ctx.ReadValue<Vector2>();
-	}
-
-	private void isRunningHandler(InputAction.CallbackContext ctx) {
-
-		this.isRunning = ctx.ReadValueAsButton();
-
-	}
-
-	private void rotationHandler(InputAction.CallbackContext ctx) {
-
-		this.rotationInput = ctx.ReadValue<Vector2>();
-
-	}
+	private void SetSpeed() {
 	
-	private void jumpHandler(InputAction.CallbackContext ctx) {
+		switch (movementState) {
+
+			case MovementState.Idle:
+				horizontalSpeed = 0f;
+				break;
+
+			case MovementState.Walking:
+				horizontalSpeed = walkSpeed;
+				break;
+
+			case MovementState.Running:
+				horizontalSpeed = runSpeed;
+				break;
+
+		}
+
+	}
+
+	public void SetMovementState(MovementState movementState) {
+
+		if ((movementState == MovementState.Crouching ||
+			movementState == MovementState.Running) &&
+			movementInput == Vector2.zero
+
+		) return;
+
+		this.movementState = movementState;
+
+	}
+
+	public void ResolveMovementState(MovementState movementState) {
+
+
+		if (this.movementState != MovementState.Running) {
+
+			SetMovementState(movementState);
+				
+		}
+
+	}
+
+	private void Move() {
 		
+		Vector3 horizontalMovementVector = new Vector3(
+				movementInput.x,
+				0,
+				movementInput.y
+		);
+		Vector3 verticalMovementVector = new Vector3();
+		Vector3 resultMovementVector = new Vector3();
+
+		SetSpeed();
+
+		if (isJumping) { verticalMovementVector.y += jumpStrength; }	
+		if (!isGrounded) { verticalMovementVector.y += gravityAcceleration; }
+
+		horizontalMovementVector = transform.rotation * horizontalMovementVector * horizontalSpeed;
+		resultMovementVector = horizontalMovementVector + verticalMovementVector;
+
+		player.Move(resultMovementVector * Time.deltaTime);
+
+		
+	}
+
+	public void Jump() {
+
 		if (isGrounded) {
 
 			isJumping = true;
@@ -94,6 +128,7 @@ public class PlayerController : MonoBehaviour {
 		}
 
 	}
+
 
 	void FixedUpdate() {
 
@@ -111,72 +146,16 @@ public class PlayerController : MonoBehaviour {
 
 		} else {
 
-			gravityAcceleration += gravity / 50f;
+			gravityAcceleration += gravity / 5f;
 
 		}
 
 	}
 
     void Update() {
-   
-		Vector3 movementVector = new Vector3();
-		Vector3 rotationVector = new Vector3();
-		Vector3 cameraRotationVector = new Vector3();
-
-		movementVector.x = movementInput.x;
-		movementVector.z = movementInput.y;
-
-		rotationVector.y = rotationInput.x;
-		cameraRotationVector.x = -rotationInput.y;
-
-		// Camera clamp
-		float resultCameraRotation = cameraRotationVector.x + playerCamera.transform.eulerAngles.x;
-
-		if (resultCameraRotation >= 180) resultCameraRotation -= 360;
-
-		if (resultCameraRotation >= 90 || resultCameraRotation <= -90) {
-
-			cameraRotationVector.x = 0;
-
-		}
 		
-	
-
-		if (isJumping) {
-
-			movementVector.y += jumpStrength;
-
-		}
+		Move();
 		
-		if (!isGrounded) {
-
-			movementVector.y += gravityAcceleration;
-		}
-		
-		// Movement states 
-		if (isRunning) {
-
-			movementVector *= runSpeed;
-
-		} else {
-
-			movementVector *= walkSpeed;
-
-		}
-
-		movementVector = transform.rotation * movementVector; 
-		movementVector *= Time.deltaTime;
-
-		rotationVector *= mouseSensivity;
-		rotationVector *= Time.deltaTime;
-
-		cameraRotationVector *= mouseSensivity;
-		cameraRotationVector *= Time.deltaTime;
-
-
-		player.Move(movementVector);
-		player.transform.Rotate(rotationVector);
-		playerCamera.transform.Rotate(cameraRotationVector);
     }
 
 	
