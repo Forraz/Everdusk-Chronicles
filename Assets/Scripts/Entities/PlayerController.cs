@@ -1,10 +1,12 @@
 using UnityEngine;
+using System.Collections;
 
 public enum MovementState {
 	
 	Idle,
 	Walking,
 	Running,
+	Dashing,
 	Crouching
 }
 
@@ -14,33 +16,33 @@ public class PlayerController : MonoBehaviour {
 	// Editor parametrs
 	public float walkSpeed;
 	public float runSpeed;
+	public float dashSpeed;
+	public float dashDuration;
 	public float gravity;
 	public float jumpStrength;
+	public float maxHealth;
 
 	// Components and child objects
 	private CharacterController player;
 	
 	// Private properties
 	private Vector2 movementInput;
+	private Vector2 dashMovementInput;
 	private float horizontalSpeed = 0f;
+	private float health;
 	private MovementState movementState;
-	private bool isRunning = false;
 	private bool isJumping = false;
 	private bool isGrounded = false;
+	private bool isDashing = false;
 	
 	private float gravityAcceleration = 0f;
-	
-	// Controller initialization
+
     void Start() {
 		
-		FindObjects();
-
-    }
-
-	private void FindObjects() {
-
 		player = GetComponent<CharacterController>();
-	}
+		health = maxHealth;
+	
+    }
 
 	public void SetMovementInput(Vector2 movementInput) {
 
@@ -69,17 +71,20 @@ public class PlayerController : MonoBehaviour {
 				horizontalSpeed = runSpeed;
 				break;
 
+			case MovementState.Dashing:
+				horizontalSpeed = dashSpeed;
+				break;
+
 		}
 
 	}
 
 	public void SetMovementState(MovementState movementState) {
 
-		if ((movementState == MovementState.Crouching ||
-			movementState == MovementState.Running) &&
-			movementInput == Vector2.zero
+		if (movementState != MovementState.Idle && movementInput == Vector2.zero) {
 
-		) return;
+			movementState = MovementState.Idle;
+		}
 
 		this.movementState = movementState;
 
@@ -87,16 +92,26 @@ public class PlayerController : MonoBehaviour {
 
 	public void ResolveMovementState(MovementState movementState) {
 
+		if (this.movementState == MovementState.Dashing) return;
 
-		if (this.movementState != MovementState.Running) {
+		if (this.movementState == MovementState.Running &&
+			movementState != MovementState.Dashing) {
 
-			SetMovementState(movementState);
-				
+			return;
+
 		}
+
+		SetMovementState(movementState);
 
 	}
 
 	private void Move() {
+			
+		SetSpeed();
+
+		if (isDashing) {
+			movementInput = dashMovementInput;
+		}
 		
 		Vector3 horizontalMovementVector = new Vector3(
 				movementInput.x,
@@ -105,8 +120,6 @@ public class PlayerController : MonoBehaviour {
 		);
 		Vector3 verticalMovementVector = new Vector3();
 		Vector3 resultMovementVector = new Vector3();
-
-		SetSpeed();
 
 		if (isJumping) { verticalMovementVector.y += jumpStrength; }	
 		if (!isGrounded) { verticalMovementVector.y += gravityAcceleration; }
@@ -128,15 +141,45 @@ public class PlayerController : MonoBehaviour {
 		}
 
 	}
+	
+	public IEnumerator Dash() {
+		
+		MovementState preservedMovemetState = movementState;
+		SetMovementState(MovementState.Dashing);
 
+		dashMovementInput = movementInput;
+		
+		PlayerManager.Instance.DisableCameraShaking();
+
+		yield return new WaitForSeconds(dashDuration);
+		
+		SetMovementState(preservedMovemetState);
+		PlayerManager.Instance.EnableCameraShaking();
+
+	}
+
+	public void TakeDamage(float damage) {
+
+		health -= damage;
+
+		if (health == 0) Die();
+
+	}
+
+	public void Die() {
+	
+		health = 0;
+
+	}
 
 	void FixedUpdate() {
 
-		// Check if character touches the ground
-		isGrounded = Physics.CheckSphere(
-				player.transform.position,
-				player.height / 2 + 0.1f ,
-				LayerMask.GetMask("Ground") | LayerMask.GetMask("Player")
+		// Checks if character touches the ground
+		isGrounded = Physics.Raycast(
+			player.transform.position,
+			Vector3.down,
+			player.height / 2 + 0.1f,
+			LayerMask.GetMask("Ground")	
 		);
 
 		if (isGrounded) {

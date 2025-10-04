@@ -28,12 +28,14 @@ public class InputManager : MonoBehaviour {
 		
 		playerInput.PlayerMovement.Look.performed += LookHandler;
 		playerInput.PlayerMovement.Jump.performed += JumpHandler;
+		playerInput.PlayerMovement.Dash.performed += DashHandler;
 
 		playerInput.PlayerMovement.Movement.performed += MovementHandler;
 		playerInput.PlayerMovement.Movement.canceled += StopMovementHandler;
 
 		playerInput.PlayerMovement.Run.performed += RunHandler;
 		playerInput.PlayerMovement.Run.canceled += StopRunHandler;
+
 	}
 
 	private void OnEnable() {
@@ -50,38 +52,42 @@ public class InputManager : MonoBehaviour {
 
 	private void LookHandler(InputAction.CallbackContext ctx) {
 
-		playerCameraController.Look(ctx.ReadValue<Vector2>());	
+		PlayerManager.Instance.Look(ctx.ReadValue<Vector2>());
 
 	}
 
 	private void MovementHandler(InputAction.CallbackContext ctx) {
-		
-		playerController.SetMovementInput(ctx.ReadValue<Vector2>());
-		playerController.ResolveMovementState(MovementState.Walking);
+
+		PlayerManager.Instance.Move(ctx.ReadValue<Vector2>());
 
 	}
 
 	private void StopMovementHandler(InputAction.CallbackContext ctx) {
 		
-		playerController.SetMovementInput(Vector2.zero);
-		playerController.SetMovementState(MovementState.Idle);
+		PlayerManager.Instance.StopMove();
 
 	}
 
 	private void RunHandler(InputAction.CallbackContext ctx) {
 		
-		playerController.ResolveMovementState(MovementState.Running);
+		PlayerManager.Instance.Run(true);
 
 	}
 	private void StopRunHandler(InputAction.CallbackContext ctx) {
 
-		playerController.SetMovementState(MovementState.Walking);
+		PlayerManager.Instance.Run(false);
 
 	}
 
 	private void JumpHandler(InputAction.CallbackContext ctx) {
 
-		playerController.Jump();
+		PlayerManager.Instance.Jump();
+
+	}
+
+	private void DashHandler(InputAction.CallbackContext ctx) {
+
+		PlayerManager.Instance.Dash();
 
 	}
 }

@@ -1,5 +1,11 @@
 using UnityEngine;
 
+public enum ShakingMode {
+
+	Move,
+	Dash
+		
+}
 
 public class CameraController: MonoBehaviour {
 
@@ -13,10 +19,12 @@ public class CameraController: MonoBehaviour {
 	private Vector3 lookVectorY;
 
 	private bool isShaking = true;
-	private float shakeTimer = 0f;
-	private float shakeMaxTime = 1f;
-	private float shakeAmplitude = 2f;
+	private ShakingMode shakingMode;
 
+	private float shakeTimer = 0f;
+	private float shakeMaxTime;
+	private float shakeAmplitude;
+	
 	
 	
 	void Start() {
@@ -45,7 +53,9 @@ public class CameraController: MonoBehaviour {
 
 	private static float ShakeFunction(float shakeTime, float shakeMaxTime, float shakeAmplitude) {
 
-		return Mathf.Sin(shakeTime / shakeMaxTime * 2 * Mathf.PI) * shakeAmplitude;	
+		float shakeValue = shakeTime / shakeMaxTime;
+
+		return Mathf.Sin(shakeValue * 2 * Mathf.PI) * shakeAmplitude;	
 
 	}
 
@@ -57,9 +67,22 @@ public class CameraController: MonoBehaviour {
 		shakeTimer += Time.deltaTime;
 
 		float shakeValue = ShakeFunction(shakeTimer, shakeMaxTime, shakeAmplitude);
+		float resultShakeValue = shakeValue - prevShakeValue;
 
-		lookVectorX.x += shakeValue - prevShakeValue;
+		lookVectorX.x += resultShakeValue;
+			
 	
+	}
+	public void EnableShaking() {
+
+		isShaking = true;
+
+	}
+
+	public void DisableShaking() {
+
+		isShaking = false;
+
 	}
 
 	private Vector2 ClampLookX(Vector3 lookVector) {
@@ -93,9 +116,11 @@ public class CameraController: MonoBehaviour {
 
 		}
 
-		if (playerSpeed == 0f) { playerSpeed = 2f; } 
+		if (playerSpeed == 0f) { playerSpeed = 2f; }
+
 		shakeMaxTime =  5 / playerSpeed;
-		shakeAmplitude = playerSpeed * 0.05f;	
+		shakeAmplitude = playerSpeed * 0.05f;
+
 
 		if (isShaking) {
 
