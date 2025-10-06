@@ -174,11 +174,11 @@ public class PlayerController : MonoBehaviour {
 
 	void FixedUpdate() {
 
-		// Checks if character touches the ground
-		isGrounded = Physics.Raycast(
-			player.transform.position,
-			Vector3.down,
-			player.height / 2 + 0.1f,
+		Vector3 groundCheckPosition = player.transform.position + Vector3.down * player.height / 2;
+
+		isGrounded = Physics.CheckSphere(
+			groundCheckPosition,
+			player.radius / 2,
 			LayerMask.GetMask("Ground")	
 		);
 
